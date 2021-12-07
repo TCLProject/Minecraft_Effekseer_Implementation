@@ -1,91 +1,63 @@
 package com.tfc.minecraft_effekseer_implementation;
 
-import com.tfc.minecraft_effekseer_implementation.common.Effek;
-import com.tfc.minecraft_effekseer_implementation.common.Effeks;
-import com.tfc.minecraft_effekseer_implementation.common.api.EffekEmitter;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.ServerPlayerEntity;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.vector.Vector3d;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.network.NetworkRegistry;
-import net.minecraftforge.fml.network.PacketDistributor;
-import net.minecraftforge.fml.network.simple.SimpleChannel;
-
 import java.util.function.Predicate;
 
+import javax.vecmath.Vector3d;
+
+import com.tfc.minecraft_effekseer_implementation.packet.EffekPacketClient;
+import com.tfc.minecraft_effekseer_implementation.packet.EndEmitterPacketClient;
+
+import cpw.mods.fml.common.network.NetworkRegistry;
+import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
+import cpw.mods.fml.relauncher.Side;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
+
 public class Networking {
-	private static final String version = "1";
-	private static final SimpleChannel channel = NetworkRegistry.ChannelBuilder
-			.named(new ResourceLocation("mc_effekseer_impl:main"))
-			.serverAcceptedVersions((v) -> version.equals(v) || NetworkRegistry.ABSENT.equals(v) || NetworkRegistry.ACCEPTVANILLA.equals(v))
-			.clientAcceptedVersions((v) -> version.equals(v) || NetworkRegistry.ABSENT.equals(v) || NetworkRegistry.ACCEPTVANILLA.equals(v))
-			.networkProtocolVersion(() -> "1")
-			.simpleChannel();
+
+	public static final SimpleNetworkWrapper dispatcher = NetworkRegistry.INSTANCE.newSimpleChannel("mc_effekseer_impl");
 	
-	protected static void init() {
-	}
-	
-	static {
-		channel.registerMessage(
-				0, EffekPacket.class,
-				EffekPacket::writePacketData, EffekPacket::read,
-				(packet, context) -> {
-					Effek effek = Effeks.get(packet.effekName.toString());
-					if (effek != null) {
-						EffekEmitter emitter = effek.getOrCreate(packet.emmiterName.toString());
-						emitter.setVisible(true);
-						emitter.setPaused(false);
-						emitter.setPlayProgress(packet.progress);
-						emitter.setPosition(packet.position.getX(), packet.position.getY(), packet.position.getZ());
-					}
-					context.get().setPacketHandled(true);
-				}
-		);
-		channel.registerMessage(
-				1, EndEmitterPacket.class,
-				EndEmitterPacket::writePacketData, EndEmitterPacket::new,
-				(packet, context) -> {
-					Effek effek = Effeks.get(packet.effekName.toString());
-					if (effek != null) effek.delete(effek.getOrCreate(packet.emitterName.toString()));
-					context.get().setPacketHandled(true);
-				}
-		);
-	}
-	
-	public static Vector3d blockPosToVector(BlockPos pos) {
-		return new Vector3d(pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f);
-	}
+	public static final void registerPackets() {
+       	// Registration
+		dispatcher.registerMessage(EffekPacketClient.Handler.class, EffekPacketClient.class, 0, Side.CLIENT);
+		dispatcher.registerMessage(EndEmitterPacketClient.Handler.class, EndEmitterPacketClient.class, 1, Side.CLIENT);
+    }
 	
 	public static void sendStartEffekPacket(
-			Predicate<PlayerEntity> selector, World world,
-			ResourceLocation effekName, ResourceLocation emitterName, float progress, Vector3d position
+			Predicate<EntityPlayer> selector, World world,
+			String effekName, String emitterName, float progress, Vector3d position
 	) {
-		EffekPacket packet = new EffekPacket(effekName, progress, position, emitterName);
-		for (PlayerEntity player : world.getPlayers()) {
-			if (selector.test(player) && player instanceof ServerPlayerEntity) {
-				channel.send(
-						PacketDistributor.PLAYER.with(() -> ((ServerPlayerEntity) player)),
-						packet
+		EffekPacketClient packet = new EffekPacketClient(effekName, progress, position, emitterName);
+		for (Object playerObj : world.playerEntities) {
+			EntityPlayer player = (EntityPlayer)playerObj;
+			if (selector.test(player) && player instanceof EntityPlayerMP) {
+				dispatcher.sendTo(
+						packet,
+						(EntityPlayerMP)player
 				);
 			}
 		}
 	}
 	
-	public static void sendStartEffekPacket(
-			PacketDistributor.PacketTarget target,
-			ResourceLocation effekName, ResourceLocation emitterName, float progress, Vector3d position
-	) {
-		EffekPacket packet = new EffekPacket(effekName, progress, position, emitterName);
-		channel.send(target, packet);
+	public static void sendStartEffekPacket(EntityPlayerMP target, String effekName, String emitterName, float progress, Vector3d position) {
+		EffekPacketClient packet = new EffekPacketClient(effekName, progress, position, emitterName);
+		dispatcher.sendTo(packet, target);
 	}
 	
-	public static void sendEndEffekPacket(
-			PacketDistributor.PacketTarget target,
-			ResourceLocation effekName, ResourceLocation emitterName, boolean deleteEmitter
-	) {
-		EndEmitterPacket packet = new EndEmitterPacket(effekName, emitterName, deleteEmitter);
-		channel.send(target, packet);
+	public static void sendStartEffekPacketToDimension(String effekName, String emitterName, float progress, Vector3d position, int id) {
+		EffekPacketClient packet = new EffekPacketClient(effekName, progress, position, emitterName);
+		dispatcher.sendToDimension(packet, id);
+	}
+	
+	public static void sendEndEffekPacket(EntityPlayerMP target, String effekName, String emitterName, boolean deleteEmitter) {
+		EndEmitterPacketClient packet = new EndEmitterPacketClient(effekName, emitterName, deleteEmitter);
+		dispatcher.sendTo(packet, target);
+	}
+
+	public static void sendEndEffekPacketToDimension(String effekName, String emitterName, boolean deleteEmitter, int id) {
+		EndEmitterPacketClient packet = new EndEmitterPacketClient(effekName, emitterName, deleteEmitter);
+		dispatcher.sendToDimension(packet, id);
 	}
 }

@@ -1,38 +1,56 @@
 package com.tfc.minecraft_effekseer_implementation;
 
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.context.CommandContext;
-import net.minecraft.command.CommandSource;
-import net.minecraft.command.Commands;
-import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.network.PacketDistributor;
+import javax.vecmath.Vector3d;
 
-public class Command {
-	public static LiteralArgumentBuilder<CommandSource> construct() {
-		return Commands.literal("effek").requires(commandSource -> commandSource.hasPermissionLevel(2))
-				.then(Commands.argument("effek", StringArgumentType.string())
-						.then(Commands.argument("emitter", StringArgumentType.string())
-								.then(Commands.literal("true").executes((source) -> handle(source, source.getSource(), true)))
-								.then(Commands.literal("false").executes((source) -> handle(source, source.getSource(), false)))));
-	}
+import net.minecraft.command.CommandBase;
+import net.minecraft.command.ICommandSender;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.util.ResourceLocation;
+
+public class Command extends CommandBase {
 	
-	private static int handle(CommandContext<?> context, CommandSource source, boolean delete) {
-		if (!delete) {
-			Networking.sendEndEffekPacket(
-					PacketDistributor.DIMENSION.with(() -> source.getWorld().getDimensionKey()),
-					new ResourceLocation(StringArgumentType.getString(context, "effek")),
-					new ResourceLocation(StringArgumentType.getString(context, "emitter")),
-					true
+    @Override
+    public String getCommandName()
+    {
+        return "effek";
+    }
+    
+    public int getRequiredPermissionLevel()
+    {
+        return 0;
+    }
+
+    @Override
+    public String getCommandUsage(final ICommandSender sender)
+    {
+        return "Performs effek operations";
+    }
+
+    @Override
+    public void processCommand(final ICommandSender sender, final String[] args)
+    {
+        if (!(sender instanceof EntityPlayerMP))
+        {
+            return;
+        }
+        
+        // /effek [effect] [emitter] [delete]
+        
+        if (args[2].equalsIgnoreCase("true")) { // delete
+			Networking.sendEndEffekPacketToDimension(
+					args[0],
+					args[1],
+					true,
+					sender.getEntityWorld().provider.dimensionId
 			);
 		} else {
-			Networking.sendStartEffekPacket(
-					PacketDistributor.DIMENSION.with(() -> source.getWorld().getDimensionKey()),
-					new ResourceLocation(StringArgumentType.getString(context, "effek")),
-					new ResourceLocation(StringArgumentType.getString(context, "emitter")),
-					0, source.getPos()
+			Networking.sendStartEffekPacketToDimension(
+					args[0],
+					args[1],
+					0, 
+					new Vector3d(sender.getPlayerCoordinates().posX, sender.getPlayerCoordinates().posY, sender.getPlayerCoordinates().posZ),
+					sender.getEntityWorld().provider.dimensionId
 			);
 		}
-		return 0;
-	}
+    }
 }
