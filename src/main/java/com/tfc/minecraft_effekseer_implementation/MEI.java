@@ -20,7 +20,9 @@ import com.tfc.minecraft_effekseer_implementation.loader.EffekseerMCAssetLoader;
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.Mod.EventHandler;
+import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import net.minecraft.client.Minecraft;
@@ -30,14 +32,29 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
 
-@Mod(modid="mc_effekseer_impl", version="1.1.0", name="TCLGraphics FX")
+@Mod(modid="mc_effekseer_impl", version="1.1.0", name="MC Effekseer Implementation")
 public class MEI {
 	private static final Logger LOGGER = LogManager.getLogger();
 	
 	private static final Effeks mapHandler = Effeks.getMapHandler();
+	public static boolean renderingEnabled = false;
+	
+	@SidedProxy(
+      clientSide = "com.tfc.minecraft_effekseer_implementation.ClientProxy",
+      serverSide = "com.tfc.minecraft_effekseer_implementation.ServerProxy",
+      modId = "mc_effekseer_impl"
+    )
+    public static ServerProxy proxy;
+	
+	@EventHandler
+    public void preInit(FMLPreInitializationEvent event)
+    {
+        proxy.registerKeyHandelers();
+    }
 	
 	@EventHandler
     public void init(FMLInitializationEvent event) {
+		proxy.register();
 		MinecraftForge.EVENT_BUS.register(this);
 		FMLCommonHandler.instance().bus().register(this);
 		
@@ -66,112 +83,127 @@ public class MEI {
 	
 	@SubscribeEvent
 	public void renderWorldLast(final RenderWorldLastEvent event) {
-		mapHandler.setTimeSinceReload(Effeks.getTimeSinceReload() + 1);
-		
-		Effek effek = Effeks.get("mc_effekseer_impl:effeks0");
-		if (effek != null) {
-			EffekEmitter emitter = effek.getOrCreate("test:test");
-			emitter.setPosition(0, 10, 0);
-		}
-//		Effek effek = Effeks.get("mc_effekseer_impl:example");
-//		if (effek != null) {
-//			EffekEmitter emitter = effek.getOrCreate("test:test");
-//			emitter.setVisible(false);
-//			for (Entity allEntity : Minecraft.getInstance().world.getAllEntities()) {
-//				if (allEntity instanceof FishingBobberEntity) {
-//					emitter.emitter.setVisibility(true);
-//					emitter.emitter.move(
-//							(float) MathHelper.lerp(Minecraft.getInstance().getRenderPartialTicks(), (float) allEntity.lastTickPosX, allEntity.getPosX()) - 0.5f,
-//							(float) MathHelper.lerp(Minecraft.getInstance().getRenderPartialTicks(), (float) allEntity.lastTickPosY, allEntity.getPosY()) - 0.5f,
-//							(float) MathHelper.lerp(Minecraft.getInstance().getRenderPartialTicks(), (float) allEntity.lastTickPosZ, allEntity.getPosZ()) - 0.5f
-//					);
-//				}
-//				if (allEntity instanceof ArmorStandEntity) {
-//					ResourceLocation location = new ResourceLocation("modid:"+allEntity.getUniqueID().toString());
-//					EffekEmitter emitter1 = effek.getOrCreate(location.toString());
-//					emitter1.setPosition(allEntity.getPosX(), allEntity.getPosY() + allEntity.getEyeHeight(), allEntity.getPosZ());
-//					if (!allEntity.isAlive()) effek.delete(emitter1);
-//				}
-//			}
-//		}
-//		effek = Effeks.get("example:aura");
-//		if (effek != null)
-//			for (int x = 0; x < 16; x++) {
-//				for (int y = 0; y < 16; y++) {
-//					EffekEmitter emitter = effek.getOrCreate("test:x" + x + "y" + y + "z0");
-//					if (emitter != null) emitter.setPosition(x, y + 16, 0);
-//					effek.delete(emitter);
-//				}
-//			}
-		float diff = 1;
-		if (lastFrame != -1) {
-			long currentTime = System.currentTimeMillis();
-			diff = (Math.abs(currentTime - lastFrame) / 1000f) * 60;
-		}
+		if(renderingEnabled) {
+			mapHandler.setTimeSinceReload(Effeks.getTimeSinceReload() + 1);
 
-		lastFrame = System.currentTimeMillis();
-		
-//		event.getMatrixStack().push();
-		GL11.glPushMatrix();
-//		event.getMatrixStack().translate(
-//				-Minecraft.getMinecraft().getRenderManager().info.getProjectedView().getX(),
-//				-Minecraft.getMinecraft().getRenderManager().info.getProjectedView().getY(),
-//				-Minecraft.getMinecraft().getRenderManager().info.getProjectedView().getZ()
-//		);
-		GL11.glTranslated(
-				-Minecraft.getMinecraft().renderViewEntity.posX,
-				-Minecraft.getMinecraft().renderViewEntity.posY,
-				-Minecraft.getMinecraft().renderViewEntity.posZ
-		);
-		
-		// in case the above won't work, try the below
-//		EntityLivingBase entitylivingbase = Minecraft.getMinecraft().renderViewEntity;
-//      double x = entitylivingbase.lastTickPosX + (entitylivingbase.posX - entitylivingbase.lastTickPosX) * Minecraft.getMinecraft().timer.renderPartialTicks;
-//      double y = entitylivingbase.lastTickPosY + (entitylivingbase.posY - entitylivingbase.lastTickPosY) * Minecraft.getMinecraft().timer.renderPartialTicks;
-//      double z = entitylivingbase.lastTickPosZ + (entitylivingbase.posZ - entitylivingbase.lastTickPosZ) * Minecraft.getMinecraft().timer.renderPartialTicks;
-//        
-//		GL11.glTranslated(
-//				-x,
-//				-y,
-//				-z
-//		);
-
-
-//		event.getMatrixStack().translate(0.5f, 0.5f, 0.5f);
-		GL11.glTranslatef(0.5f, 0.5f, 0.5f);
-		FloatBuffer b = BufferUtils.createFloatBuffer(16);
-		GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, b);
-		Matrix4f matrix = new Matrix4f(
-				b.get(), b.get(), b.get(), b.get(),
-				b.get(), b.get(), b.get(), b.get(), 
-				b.get(), b.get(), b.get(), b.get(), 
-				b.get(), b.get(), b.get(), b.get()
-		);
-		float[][] cameraMatrix = matrixToArray(matrix);
-//		event.getMatrixStack().pop();
-		GL11.glPopMatrix();
-//		matrix = Minecraft.getMinecraft().entityRenderer.theShaderGroup.projectionMatrix;
-//		float[][] projectionMatrix = matrixToArray(matrix);
-		
-		// if the above won't work
-		FloatBuffer b2 = BufferUtils.createFloatBuffer(16);
-		GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, b2);
-		Matrix4f matrix2 = new Matrix4f(
-				b2.get(), b2.get(), b2.get(), b2.get(),
-				b2.get(), b2.get(), b2.get(), b2.get(), 
-				b2.get(), b2.get(), b2.get(), b2.get(), 
-				b2.get(), b2.get(), b2.get(), b2.get()
-		);
-		float[][] projectionMatrix = matrixToArray(matrix2);
-		
-		final float finalDiff = diff;
-//		if (event.renderer.getParticleFrameBuffer() != null)
-//			event.renderer.getParticleFrameBuffer().copyDepthFrom(Minecraft.getMinecraft().getFramebuffer());
-//		RenderState.PARTICLES_TARGET.setupRenderState();
-		Effeks.forEach((name, effect) -> effect.draw(cameraMatrix, projectionMatrix, finalDiff));
-//		RenderState.PARTICLES_TARGET.clearRenderState();
-	}
+			Effek effek = Effeks.get("mc_effekseer_impl:effeks0");
+			if (effek != null) {
+				EffekEmitter emitter = effek.getOrCreate("test:test");
+				emitter.setPosition(0, 10, 0);
+			}
+			
+	//		Effek effek = Effeks.get("mc_effekseer_impl:example");
+	//		if (effek != null) { 
+	//			EffekEmitter emitter = effek.getOrCreate("test:test");
+	//			emitter.setVisible(false);
+	//			for (Entity allEntity : Minecraft.getInstance().world.getAllEntities()) {
+	//				if (allEntity instanceof FishingBobberEntity) {
+	//					emitter.emitter.setVisibility(true);
+	//					emitter.emitter.move(
+	//							(float) MathHelper.lerp(Minecraft.getInstance().getRenderPartialTicks(), (float) allEntity.lastTickPosX, allEntity.getPosX()) - 0.5f,
+	//							(float) MathHelper.lerp(Minecraft.getInstance().getRenderPartialTicks(), (float) allEntity.lastTickPosY, allEntity.getPosY()) - 0.5f,
+	//							(float) MathHelper.lerp(Minecraft.getInstance().getRenderPartialTicks(), (float) allEntity.lastTickPosZ, allEntity.getPosZ()) - 0.5f
+	//					);
+	//				}
+	//				if (allEntity instanceof ArmorStandEntity) {
+	//					ResourceLocation location = new ResourceLocation("modid:"+allEntity.getUniqueID().toString());
+	//					EffekEmitter emitter1 = effek.getOrCreate(location.toString());
+	//					emitter1.setPosition(allEntity.getPosX(), allEntity.getPosY() + allEntity.getEyeHeight(), allEntity.getPosZ());
+	//					if (!allEntity.isAlive()) effek.delete(emitter1);
+	//				}
+	//			}
+	//		}
+	//		effek = Effeks.get("example:aura");
+	//		if (effek != null)
+	//			for (int x = 0; x < 16; x++) {
+	//				for (int y = 0; y < 16; y++) {
+	//					EffekEmitter emitter = effek.getOrCreate("test:x" + x + "y" + y + "z0");
+	//					if (emitter != null) emitter.setPosition(x, y + 16, 0);
+	//					effek.delete(emitter);
+	//				}
+	//			}
+			float diff = 1;
+			if (lastFrame != -1) {
+				long currentTime = System.currentTimeMillis();
+				diff = (Math.abs(currentTime - lastFrame) / 1000f) * 60;
+			}
 	
+			lastFrame = System.currentTimeMillis();
+			
+	//		event.getMatrixStack().push();
+			GL11.glPushMatrix();
+	//		event.getMatrixStack().translate(
+	//				-Minecraft.getMinecraft().getRenderManager().info.getProjectedView().getX(),
+	//				-Minecraft.getMinecraft().getRenderManager().info.getProjectedView().getY(),
+	//				-Minecraft.getMinecraft().getRenderManager().info.getProjectedView().getZ()
+	//		);
+			GL11.glTranslated(
+					-Minecraft.getMinecraft().renderViewEntity.posX,
+					-Minecraft.getMinecraft().renderViewEntity.posY,
+					-Minecraft.getMinecraft().renderViewEntity.posZ
+			);
+			
+			// in case the above won't work, try the below 
+	//		System.out.println(-Minecraft.getMinecraft().renderViewEntity.posX + "," +
+	//		-Minecraft.getMinecraft().renderViewEntity.posY + "," +
+	//		-Minecraft.getMinecraft().renderViewEntity.posZ);
+	//		EntityLivingBase entitylivingbase = Minecraft.getMinecraft().renderViewEntity;
+	//      double x = entitylivingbase.lastTickPosX + (entitylivingbase.posX - entitylivingbase.lastTickPosX) * Minecraft.getMinecraft().timer.renderPartialTicks;
+	//      double y = entitylivingbase.lastTickPosY + (entitylivingbase.posY - entitylivingbase.lastTickPosY) * Minecraft.getMinecraft().timer.renderPartialTicks;
+	//      double z = entitylivingbase.lastTickPosZ + (entitylivingbase.posZ - entitylivingbase.lastTickPosZ) * Minecraft.getMinecraft().timer.renderPartialTicks;
+	//        
+	//		GL11.glTranslated(
+	//				-x,
+	//				-y,
+	//				-z
+	//		);
+	
+	
+	//		event.getMatrixStack().translate(0.5f, 0.5f, 0.5f);
+			
+			GL11.glTranslatef(0.5f, 0.5f, 0.5f);
+			FloatBuffer b = BufferUtils.createFloatBuffer(16);
+			GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, b);
+			Matrix4f matrix = new Matrix4f(
+					b.get(), b.get(), b.get(), b.get(),
+					b.get(), b.get(), b.get(), b.get(),
+					b.get(), b.get(), b.get(), b.get(),
+					b.get(), b.get(), b.get(), b.get()
+			);
+			float[][] cameraMatrix = matrixToArray(matrix);
+			GL11.glDisable(GL11.GL_CULL_FACE);
+			GL11.glDisable(GL11.GL_ALPHA_TEST);
+			GL11.glDisable(GL11.GL_DEPTH_TEST);
+
+	//		event.getMatrixStack().pop();
+			
+	//		matrix = Minecraft.getMinecraft().entityRenderer.theShaderGroup.projectionMatrix;
+	//		float[][] projectionMatrix = matrixToArray(matrix);
+
+			// if the above won't work
+			FloatBuffer b2 = BufferUtils.createFloatBuffer(16);
+			GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, b2);
+			Matrix4f matrix2 = new Matrix4f(
+					b2.get(), b2.get(), b2.get(), b2.get(),
+					b2.get(), b2.get(), b2.get(), b2.get(),
+					b2.get(), b2.get(), b2.get(), b2.get(),
+					b2.get(), b2.get(), b2.get(), b2.get()
+			);
+
+			float[][] projectionMatrix = matrixToArray(matrix2);
+
+			final float finalDiff = diff;
+	//		if (event.renderer.getParticleFrameBuffer() != null) 
+	//			event.renderer.getParticleFrameBuffer().copyDepthFrom(Minecraft.getMinecraft().getFramebuffer());
+	//		RenderState.PARTICLES_TARGET.setupRenderState();
+			Effeks.forEach((name, effect) -> effect.draw(cameraMatrix, projectionMatrix, finalDiff));
+	//		RenderState.PARTICLES_TARGET.clearRenderState();
+			GL11.glEnable(GL11.GL_CULL_FACE);
+			GL11.glEnable(GL11.GL_DEPTH_TEST);
+			GL11.glPopMatrix();
+		}
+	}
+
 	public static void printEffectInfo(EffekseerEffect effect) {
 		System.out.println("Effect info:");
 		System.out.println(" curveCount: " + effect.curveCount());
